@@ -11,16 +11,16 @@ Remaking my favorite Discord bot in Golang
 ## Usage:
 
 1. Configure Discord's end for your bot
-a. https://discordnet.dev/guides/getting_started/first-bot.html	
+https://discordnet.dev/guides/getting_started/first-bot.html	
 	 
 2. Compile Dadbot.go
-a. `go build Dadbot.go` 
+`go build Dadbot.go` 
 	
 3. Get your DISCORD_BOT_TOKEN
 ![Bot token](https://i.imgur.com/yCfOMFV.png)
 
 4. Run it!
-a. `./Dadbot -t DISCORD_BOT_TOKEN`
+`./Dadbot -t DISCORD_BOT_TOKEN`
 
 5. Wait for people to tell you to remove it
 ![profit](https://i.imgur.com/Ij2h3dW.png)
