@@ -79,6 +79,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		msg = ""
 		return
 	}
+	// This guy breaks on words like: "him" and "sim" 
 	if strings.Contains(m.Content, "im ") {
 		msg := m.Content
 		msgSplit := strings.SplitAfter(msg, "im ")
