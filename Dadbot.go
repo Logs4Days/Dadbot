@@ -18,7 +18,7 @@ import (
 
 var (
 	token      = flag.String("t", "", "Bot Token")
-	dadRegex   = regexp.MustCompile(`(?i)\bI'?m\s+(\w+)`)
+	dadRegex   = regexp.MustCompile(`(?i)\bI'?m\s+(.+)`)
 	pauseRegex = regexp.MustCompile(`(?i)\b(cigs|cigarette(s)?|milk)\b`)
 	winRegex   = regexp.MustCompile(`(?i)(can'?t\s+win|keep\s+(losing))`)
 	isPaused   bool
@@ -115,7 +115,7 @@ func handleWinLoseTrigger(s *discordgo.Session, m *discordgo.MessageCreate) {
 }
 
 func handleJokeRequest(s *discordgo.Session, m *discordgo.MessageCreate) {
-	if strings.ToLower(m.Content) == "Hey dad tell me a joke" {
+	if strings.ToLower(m.Content) == "tell me a joke" {
 		joke, err := getDadJoke()
 		if err != nil {
 			s.ChannelMessageSend(m.ChannelID, "Oops, I couldn't fetch a joke right now.")
@@ -126,16 +126,13 @@ func handleJokeRequest(s *discordgo.Session, m *discordgo.MessageCreate) {
 }
 
 func handleDadResponse(s *discordgo.Session, m *discordgo.MessageCreate) {
-	content := strings.ToLower(m.Content)
-	matches := dadRegex.FindStringSubmatch(content)
+	matches := dadRegex.FindStringSubmatch(m.Content)
 
 	if len(matches) > 1 {
-		if matches[1] == "dad" {
-			// Special response for "I'm dad"
+		if strings.ToLower(strings.TrimSpace(matches[1])) == "dad" {
 			s.ChannelMessageSend(m.ChannelID, "No, I'm dad!")
 		} else {
-			// Regular dad joke response
-			response := "Hi " + matches[1] + ", I'm Dad!"
+			response := "Hi " + strings.TrimSpace(matches[1]) + ", I'm Dad!"
 			s.ChannelMessageSend(m.ChannelID, response)
 		}
 	}
