@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"io"
+	"log/slog"
 	"math/rand"
 	"net/http"
 	"os"
@@ -25,22 +25,45 @@ var (
 	pauseEnd   time.Time
 )
 
+func init() {
+	// Configure native structured logging for systemd journald
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.TimeKey {
+				// RFC3339 timestamp
+				return slog.Attr{Key: "timestamp", Value: a.Value}
+			}
+			return a
+		},
+	}))
+	slog.SetDefault(logger)
+}
+
 func main() {
 	flag.Parse()
-	if *token == "" {
-		fmt.Println("No Discord Bot Token provided. Please run the bot with -t <bot token>")
-		return
+
+	// Use token from flag, or fall back to environment variable
+	botToken := *token
+	if botToken == "" {
+		botToken = os.Getenv("DISCORD_BOT_TOKEN")
 	}
 
-	discord, err := createDiscordSession(*token)
+	if botToken == "" {
+		slog.Error("No Discord Bot Token provided. Please provide via -t flag or DISCORD_BOT_TOKEN environment variable")
+		os.Exit(1)
+	}
+
+	discord, err := createDiscordSession(botToken)
 	if err != nil {
-		fmt.Println("Error creating Discord session:", err)
-		return
+		slog.Error("Error creating Discord session", "error", err)
+		os.Exit(1)
 	}
 
-	fmt.Println("Bot is now running. Press Ctrl + C to exit.")
+	slog.Info("Bot is now running. Press Ctrl + C to exit.", "service", "dadbot", "event", "startup")
 	waitForInterrupt()
 	discord.Close()
+	slog.Info("Bot shutting down gracefully", "service", "dadbot", "event", "shutdown")
 }
 
 func createDiscordSession(token string) (*discordgo.Session, error) {
@@ -61,7 +84,7 @@ func createDiscordSession(token string) (*discordgo.Session, error) {
 
 func waitForInterrupt() {
 	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sig
 }
 
@@ -70,7 +93,16 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
+	// Log message received for metrics
+	slog.Debug("Message received",
+		"event", "message_received",
+		"service", "dadbot",
+		"user_id", m.Author.ID,
+		"channel_id", m.ChannelID,
+		"guild_id", m.GuildID)
+
 	if isBotPaused() {
+		slog.Debug("Message skipped - bot is paused", "event", "message_skipped_paused", "service", "dadbot")
 		return
 	}
 
@@ -103,7 +135,15 @@ func handlePauseTrigger(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 		isPaused = true
 		randomMinutes := rand.Intn(6)
-		pauseEnd = time.Now().Add(time.Duration(15+randomMinutes) * time.Minute)
+		pauseDuration := time.Duration(15+randomMinutes) * time.Minute
+		pauseEnd = time.Now().Add(pauseDuration)
+
+		slog.Info("Bot paused by trigger word",
+			"event", "pause_triggered",
+			"service", "dadbot",
+			"pause_minutes", 15+randomMinutes,
+			"user_id", m.Author.ID,
+			"channel_id", m.ChannelID)
 	}
 }
 
@@ -111,6 +151,13 @@ func handleWinLoseTrigger(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if winRegex.MatchString(m.Content) {
 		gifLink := "https://tenor.com/view/are-ya-winning-son-gif-18099517"
 		s.ChannelMessageSend(m.ChannelID, gifLink)
+
+		slog.Info("Win/lose GIF sent",
+			"event", "win_lose_response",
+			"service", "dadbot",
+			"user_id", m.Author.ID,
+			"channel_id", m.ChannelID,
+			"trigger", "win_lose_pattern")
 	}
 }
 
@@ -119,9 +166,21 @@ func handleJokeRequest(s *discordgo.Session, m *discordgo.MessageCreate) {
 		joke, err := getDadJoke()
 		if err != nil {
 			s.ChannelMessageSend(m.ChannelID, "Oops, I couldn't fetch a joke right now.")
+			slog.Error("Failed to fetch dad joke",
+				"event", "joke_request_failed",
+				"service", "dadbot",
+				"user_id", m.Author.ID,
+				"channel_id", m.ChannelID,
+				"error", err.Error())
 			return
 		}
 		s.ChannelMessageSend(m.ChannelID, joke)
+
+		slog.Info("Dad joke sent",
+			"event", "joke_request_fulfilled",
+			"service", "dadbot",
+			"user_id", m.Author.ID,
+			"channel_id", m.ChannelID)
 	}
 }
 
@@ -129,12 +188,26 @@ func handleDadResponse(s *discordgo.Session, m *discordgo.MessageCreate) {
 	matches := dadRegex.FindStringSubmatch(m.Content)
 
 	if len(matches) > 1 {
-		if strings.ToLower(strings.TrimSpace(matches[1])) == "dad" {
-			s.ChannelMessageSend(m.ChannelID, "No, I'm dad!")
+		extracted := strings.TrimSpace(matches[1])
+		var response string
+		var responseType string
+
+		if strings.ToLower(extracted) == "dad" {
+			response = "No, I'm dad!"
+			responseType = "dad_paradox"
 		} else {
-			response := "Hi " + strings.TrimSpace(matches[1]) + ", I'm Dad!"
-			s.ChannelMessageSend(m.ChannelID, response)
+			response = "Hi " + extracted + ", I'm Dad!"
+			responseType = "dad_joke"
 		}
+
+		s.ChannelMessageSend(m.ChannelID, response)
+
+		slog.Info("Dad response sent",
+			"event", "dad_response_sent",
+			"service", "dadbot",
+			"response_type", responseType,
+			"user_id", m.Author.ID,
+			"channel_id", m.ChannelID)
 	}
 }
 

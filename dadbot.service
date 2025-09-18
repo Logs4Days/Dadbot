@@ -1,0 +1,34 @@
+[Unit]
+Description=DadBot Discord Bot
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=dadbot
+Group=dadbot
+WorkingDirectory=/opt/dadbot
+ExecStart=/usr/local/bin/Dadbot
+Restart=always
+RestartSec=10
+
+# Environment
+Environment=DISCORD_BOT_TOKEN=your_token_here_OR_Use_Some_Other_Way_To_Pass_This_Env_Var
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dadbot
+SyslogLevel=info
+SyslogFacility=daemon
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

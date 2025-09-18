@@ -1,6 +1,6 @@
 module github.com/Logs4Days/DadBot
 
-go 1.17
+go 1.23.0
 
 require github.com/bwmarrin/discordgo v0.23.2
 
