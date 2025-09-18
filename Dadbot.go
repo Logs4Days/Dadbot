@@ -26,7 +26,7 @@ var (
 )
 
 func init() {
-	// Configure native structured logging for systemd journald
+	// Configure structured logging for journald STONKS
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
@@ -93,20 +93,24 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	// Log message processed for metrics (total activity tracking)
-	slog.Info("Message processed",
-		"event", "message_processed",
-		"service", "dadbot")
-
 	if isBotPaused() {
 		slog.Debug("Message skipped - bot is paused", "event", "message_skipped_paused", "service", "dadbot")
 		return
 	}
 
-	handlePauseTrigger(s, m)
-	handleWinLoseTrigger(s, m)
-	handleJokeRequest(s, m)
-	handleDadResponse(s, m)
+	// Track if any dad-response was sent
+	responseSent := false
+	responseSent = handlePauseTrigger(s, m) || responseSent
+	responseSent = handleWinLoseTrigger(s, m) || responseSent
+	responseSent = handleJokeRequest(s, m) || responseSent
+	responseSent = handleDadResponse(s, m) || responseSent
+
+	// Log non-dad-response messages
+	if !responseSent {
+		slog.Info("Message processed",
+			"event", "message_processed",
+			"service", "dadbot")
+	}
 }
 
 func shouldSkipMessage(s *discordgo.Session, m *discordgo.MessageCreate) bool {
@@ -123,7 +127,7 @@ func isBotPaused() bool {
 	return false
 }
 
-func handlePauseTrigger(s *discordgo.Session, m *discordgo.MessageCreate) {
+func handlePauseTrigger(s *discordgo.Session, m *discordgo.MessageCreate) bool {
 	matches := pauseRegex.FindStringSubmatch(m.Content)
 	if len(matches) > 0 {
 		pauseWord := matches[0]
@@ -139,10 +143,12 @@ func handlePauseTrigger(s *discordgo.Session, m *discordgo.MessageCreate) {
 			"event", "pause_triggered",
 			"service", "dadbot",
 			"pause_minutes", 15+randomMinutes)
+		return true
 	}
+	return false
 }
 
-func handleWinLoseTrigger(s *discordgo.Session, m *discordgo.MessageCreate) {
+func handleWinLoseTrigger(s *discordgo.Session, m *discordgo.MessageCreate) bool {
 	if winRegex.MatchString(m.Content) {
 		gifLink := "https://tenor.com/view/are-ya-winning-son-gif-18099517"
 		s.ChannelMessageSend(m.ChannelID, gifLink)
@@ -151,29 +157,33 @@ func handleWinLoseTrigger(s *discordgo.Session, m *discordgo.MessageCreate) {
 			"event", "win_lose_response",
 			"service", "dadbot",
 			"trigger", "win_lose_pattern")
+		return true
 	}
+	return false
 }
 
-func handleJokeRequest(s *discordgo.Session, m *discordgo.MessageCreate) {
+func handleJokeRequest(s *discordgo.Session, m *discordgo.MessageCreate) bool {
 	if strings.ToLower(m.Content) == "tell me a joke" {
 		joke, err := getDadJoke()
 		if err != nil {
-			s.ChannelMessageSend(m.ChannelID, "Oops, I couldn't fetch a joke right now.")
+			s.ChannelMessageSend(m.ChannelID, "Gosh dang joke AI always breakin. Tell Clutch to fix it.")
 			slog.Error("Failed to fetch dad joke",
 				"event", "joke_request_failed",
 				"service", "dadbot",
 				"error", err.Error())
-			return
+			return true // Count an ERROR as reading message, maybe joke service is broke
 		}
 		s.ChannelMessageSend(m.ChannelID, joke)
 
 		slog.Info("Dad joke sent",
 			"event", "joke_request_fulfilled",
 			"service", "dadbot")
+		return true
 	}
+	return false
 }
 
-func handleDadResponse(s *discordgo.Session, m *discordgo.MessageCreate) {
+func handleDadResponse(s *discordgo.Session, m *discordgo.MessageCreate) bool {
 	matches := dadRegex.FindStringSubmatch(m.Content)
 
 	if len(matches) > 1 {
@@ -195,7 +205,9 @@ func handleDadResponse(s *discordgo.Session, m *discordgo.MessageCreate) {
 			"event", "dad_response_sent",
 			"service", "dadbot",
 			"response_type", responseType)
+		return true
 	}
+	return false
 }
 
 func getDadJoke() (string, error) {
