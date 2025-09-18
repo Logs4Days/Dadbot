@@ -38,7 +38,7 @@ For production deployment, use the included systemd service file with secure env
    sudo chmod 640 /etc/dadbot.env
    ```
 
-2. **Deploy service:**
+2. **Deploy dad:**
    ```bash
    sudo cp DadBot /usr/local/bin/
    sudo cp dadbot.service /etc/systemd/system/

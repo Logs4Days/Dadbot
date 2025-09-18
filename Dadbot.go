@@ -93,9 +93,9 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	// Log message received for metrics
-	slog.Debug("Message received",
-		"event", "message_received",
+	// Log message processed for metrics (total activity tracking)
+	slog.Info("Message processed",
+		"event", "message_processed",
 		"service", "dadbot")
 
 	if isBotPaused() {
