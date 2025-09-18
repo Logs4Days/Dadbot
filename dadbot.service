@@ -1,34 +1,56 @@
 [Unit]
-Description=DadBot Discord Bot
-After=network.target
-Wants=network.target
+Description=Dadbot Discord bot
+Wants=network-online.target
+After=network-online.target
 
 [Service]
 Type=simple
 User=dadbot
 Group=dadbot
-WorkingDirectory=/opt/dadbot
+WorkingDirectory=/var/lib/dadbot
+
+# Environment - now reads from file instead of exposing in argv
+EnvironmentFile=/etc/dadbot.env
+# No command line args needed - reads DISCORD_BOT_TOKEN from environment
 ExecStart=/usr/local/bin/Dadbot
-Restart=always
-RestartSec=10
 
-# Environment
-Environment=DISCORD_BOT_TOKEN=your_token_here_OR_Use_Some_Other_Way_To_Pass_This_Env_Var
+# Restart policy
+Restart=on-failure
+RestartSec=5s
 
-# Logging
+# Logging (journald) with structured log identifiers
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=dadbot
 SyslogLevel=info
 SyslogFacility=daemon
 
-# Security
+# Runtime directories (owned by User/Group automatically)
+RuntimeDirectory=dadbot
+StateDirectory=dadbot
+
+# Security hardening (keep networking enabled for Discord API)
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/log
+ProtectKernelLogs=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+ProtectClock=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictRealtime=true
 CapabilityBoundingSet=
+AmbientCapabilities=
+
+# Network security - only allow needed address families
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+# Hide process info from non-root (extra security)
+ProtectProc=invisible
 
 [Install]
 WantedBy=multi-user.target
