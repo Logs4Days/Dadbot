@@ -96,10 +96,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// Log message received for metrics
 	slog.Debug("Message received",
 		"event", "message_received",
-		"service", "dadbot",
-		"user_id", m.Author.ID,
-		"channel_id", m.ChannelID,
-		"guild_id", m.GuildID)
+		"service", "dadbot")
 
 	if isBotPaused() {
 		slog.Debug("Message skipped - bot is paused", "event", "message_skipped_paused", "service", "dadbot")
@@ -141,9 +138,7 @@ func handlePauseTrigger(s *discordgo.Session, m *discordgo.MessageCreate) {
 		slog.Info("Bot paused by trigger word",
 			"event", "pause_triggered",
 			"service", "dadbot",
-			"pause_minutes", 15+randomMinutes,
-			"user_id", m.Author.ID,
-			"channel_id", m.ChannelID)
+			"pause_minutes", 15+randomMinutes)
 	}
 }
 
@@ -155,8 +150,6 @@ func handleWinLoseTrigger(s *discordgo.Session, m *discordgo.MessageCreate) {
 		slog.Info("Win/lose GIF sent",
 			"event", "win_lose_response",
 			"service", "dadbot",
-			"user_id", m.Author.ID,
-			"channel_id", m.ChannelID,
 			"trigger", "win_lose_pattern")
 	}
 }
@@ -169,8 +162,6 @@ func handleJokeRequest(s *discordgo.Session, m *discordgo.MessageCreate) {
 			slog.Error("Failed to fetch dad joke",
 				"event", "joke_request_failed",
 				"service", "dadbot",
-				"user_id", m.Author.ID,
-				"channel_id", m.ChannelID,
 				"error", err.Error())
 			return
 		}
@@ -178,9 +169,7 @@ func handleJokeRequest(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 		slog.Info("Dad joke sent",
 			"event", "joke_request_fulfilled",
-			"service", "dadbot",
-			"user_id", m.Author.ID,
-			"channel_id", m.ChannelID)
+			"service", "dadbot")
 	}
 }
 
@@ -205,9 +194,7 @@ func handleDadResponse(s *discordgo.Session, m *discordgo.MessageCreate) {
 		slog.Info("Dad response sent",
 			"event", "dad_response_sent",
 			"service", "dadbot",
-			"response_type", responseType,
-			"user_id", m.Author.ID,
-			"channel_id", m.ChannelID)
+			"response_type", responseType)
 	}
 }
 
