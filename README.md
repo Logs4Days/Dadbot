@@ -27,15 +27,34 @@ Or set environment variable: `export DISCORD_BOT_TOKEN=your_token_here && ./Dadb
 ![profit](https://i.imgur.com/Ij2h3dW.png)
 
 ## Systemd Service:
-For production deployment, use the included systemd service file:
-1. Copy `dadbot.service` to `/etc/systemd/system/`
-2. Update the token in the service file or use systemd environment files
-3. `sudo systemctl enable dadbot && sudo systemctl start dadbot`
+For production deployment, use the included systemd service file with secure environment configuration:
 
-## Features:
-- **Structured Logging**: JSON output for systemd/Elastic ingestion
-- **Metrics Tracking**: Event logging with metrics for dashboards
-- **Environment Config**: Supports both CLI flags and environment variables
+### Setup:
+1. **Configure environment file:**
+   ```bash
+   sudo cp etc-dadbot.env.example /etc/dadbot.env
+   sudo nano /etc/dadbot.env  # Add your DISCORD_BOT_TOKEN
+   sudo chown root:dadbot /etc/dadbot.env
+   sudo chmod 640 /etc/dadbot.env
+   ```
+
+2. **Deploy service:**
+   ```bash
+   sudo cp DadBot /usr/local/bin/
+   sudo cp dadbot.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable dadbot
+   sudo systemctl start dadbot
+   ```
+
+3. **Monitor logs:**
+   ```bash
+   # View structured JSON logs
+   journalctl -u dadbot -f --output=json | jq .
+   
+   # Simple log viewing
+   journalctl -u dadbot -f
+   ```
 
 ## Note:
 I haven't tested this on Windows. Should work on all *.nix platforms. We push to prod without testing here 🎉
